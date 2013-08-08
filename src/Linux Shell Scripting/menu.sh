@@ -1,5 +1,5 @@
 #!/bin/bash
-#AddComment
+#AddComment123
 
 if [ "$EUID" != "0" ]; then
 	echo "Son necesarios privilegios de root"
