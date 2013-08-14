@@ -128,7 +128,11 @@ crearUsuario(){
 #Funcion encargada de apagar/reiniciar
 apagar(){
 	sudoPassword
-	echo $sudoPassword | sudo -S shutdown -$1 now -k
+	echo $sudoPassword | sudo -S shutdown -$1 now -k 
+	if [ $? -eq 1 ]; then
+		echo "ERROR" >> /tmp/log
+		dialog --title "Error" --infobox "Contraseña incorrecta" 0 0;sleep 2
+	fi
 }
 
 exit=1
@@ -171,6 +175,7 @@ until [ $exit -eq 0 ]; do
 		0) exit=0;;
 		*) exit=0;;
 	esac
+
 done
 VALOR=$(./signature.sh)
 dialog --title "Credits" --infobox "$VALOR" 0 0; sleep 1
