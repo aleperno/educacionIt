@@ -1,16 +1,32 @@
 #!/bin/bash
-#AddComment
+
+<<COMMENT
+       _                                  
+      | |                                 
+  __ _| | ___ _ __   ___ _ __ _ __   ___  
+ / _` | |/ _ \ '_ \ / _ \ '__| '_ \ / _ \ 
+| (_| | |  __/ |_) |  __/ |  | | | | (_) |
+ \__,_|_|\___| .__/ \___|_|  |_| |_|\___/ 
+             | |                          
+             |_|                          
+
+© Alejandro Pernin | blog.aleperno.com.ar | @alepernin
+
+COMMENT
 
 
-#Chequea que los privilegios al ejutarse sean de root para asegurar toda la funcionalidad
-#if [ "$EUID" != "0" ]; then
-#	echo "Son necesarios privilegios de root"
-#	exit 1
-#fi
-
-#Funcion que maneja las preguntas de si o no.
+#Manejo de la pass requerida por sudo
+sudoPassword(){
+	local value
+	exec 3>&1
+	value=$(dialog --title "Password Required" --passwordbox\
+			"Ingrese password" 0 0 2>&1 1>&3)
+	exec 3>&-
+	sudoPassword=$value
+}
+#Manejo de pregunta Si/No
 estaSeguro(){
-	echo "entra al sino"
+	
 	dialog --yesno 'Esta usted seguro?' 0 0
 	return $?
 }
@@ -103,7 +119,7 @@ crearUsuario(){
 	if estaSeguro; then
 		encriptPass $ingresePass
 		checkGrupo $ingreseGrupo
-		useradd $ingreseUsuario -p $encriptPass -g $ingreseGrupo -s /bin/bash
+		sudo useradd $ingreseUsuario -p $encriptPass -g $ingreseGrupo -s /bin/bash
 	else
 		echo "Los datos seran descartados"
 	fi
@@ -111,7 +127,8 @@ crearUsuario(){
 
 #Funcion encargada de apagar/reiniciar
 apagar(){
-	shutdown -$1 now -k
+	sudoPassword
+	echo $sudoPassword | sudo -S shutdown -$1 now -k
 }
 
 exit=1
@@ -134,7 +151,6 @@ until [ $exit -eq 0 ]; do
 		5 'Ver ultimos 10 mensajes criticos'\
 		0 'Salir'\
 		2> /tmp/menu.dat
-	echo "La opcion ingresada fue $?"
 
 	opcion=`cat /tmp/menu.dat`
 
@@ -153,6 +169,5 @@ until [ $exit -eq 0 ]; do
 		0) exit=0;;
 		*) echo "Opcion invalida";;
 	esac
-	exit=0
-#	sleep 1
+
 done

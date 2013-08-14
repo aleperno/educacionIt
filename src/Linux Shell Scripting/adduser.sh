@@ -19,7 +19,7 @@ VALUES=$(dialog --ok-label "Submit" \
 	"Shell:"    2 1	"$shell"  	2 10 15 0 \
 	"Group:"    3 1	"$groups"  	3 10 8 0 \
 	"HOME:"     4 1	"$home" 	4 10 40 0 \
-2>/tmp/txt 1>&3)
+2>&1 1>&3)
 
 # close fd
 exec 3>&-
