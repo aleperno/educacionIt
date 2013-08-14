@@ -26,8 +26,8 @@ sudoPassword(){
 }
 #Manejo de pregunta Si/No
 estaSeguro(){
-	
-	dialog --yesno 'Esta usted seguro?' 0 0
+
+	dialog --title "$1" --yesno 'Esta usted seguro?' 0 0
 	return $?
 }
 
@@ -157,17 +157,20 @@ until [ $exit -eq 0 ]; do
 
 	case $opcion in
 
-		1) if estaSeguro; then
+		1) if estaSeguro "Apagar equipo"; then
 			apagar h
 		 fi ;;
-		2) if estaSeguro; then
+		2) if estaSeguro "Reiniciar equipo"; then
 			apagar r
 		fi ;;
 		3) crearUsuario;;
-		4) tail -n 4 /etc/passwd;;
-		5) cat /var/log/messages | grep crit | tail -n 10;;
+		4) 	tail -n4 /etc/passwd > /tmp/output.dat
+			 dialog --textbox /tmp/output.dat 0 0;;
+		5) cat /var/log/messages | grep crit | tail -n 10  > /tmp/output.dat
+			 dialog --textbox /tmp/output.dat 0 0;;
 		0) exit=0;;
-		*) echo "Opcion invalida";;
+		*) exit=0;;
 	esac
-
 done
+VALOR=$(./signature.sh)
+dialog --title "Credits" --infobox "$VALOR" 0 0; sleep 1
