@@ -19,9 +19,9 @@ COMMENT
 sudoPassword(){
 	local value
 	exec 3>&1
-	value=$(dialog --title "Password Required" --passwordbox\
+	value=$(dialog --title "Password Required" --insecure --passwordbox\
 			"Ingrese password" 0 0 2>&1 1>&3)
-	exec 3>&-
+	exec 3<&-
 	sudoPassword=$value
 }
 #Manejo de pregunta Si/No
@@ -45,17 +45,19 @@ coinciden(){
 ingresePass(){
 	local exit=1
 	until [ $exit -eq 0 ]; do
-		echo "Ingrese contrasena"
-		read pass1
-		echo "Repita contrasena"
-		read pass2
-#		coinciden $pass1 $pass2
+		dialog --infobox "Ingrese contraseña" 3 50; sleep 1;
+		sudoPassword
+		local pass1=$sudoPassword
+		dialog --infobox "Repita contraseña" 3 50; sleep 1;
+		sudoPassword
+		local pass2=$sudoPassword
 		if coinciden $pass1 $pass2; then
 			exit=0
 		else
-			echo "Las contraseñas no coinciden"
+			dialog --infobox "Las contraseñas no coinciden" 3 50; sleep 1;
 		fi
 	done
+	dialog --infobox "Contraseña guardada" 3 50; sleep 1;
 	ingresePass=$pass1
 }
 
@@ -70,58 +72,55 @@ checkUsuario(){
 	return 0
 }
 
-#Maneja el ingreso del nombre de usuario
-ingreseUsuario(){
-	local usuario
-	until [ "$usuario" != "" ]; do
-		echo "Ingrese nombre de  usuario (no vacio)"
-		read usuario
-		if ! checkUsuario $usuario; then
-			echo "El usuario ya existe, ingrese otro"
-			usuario=""
-		fi
-	done
-	ingreseUsuario=$usuario
-}
-
 #Verifica si el grupo existe o no
 checkGrupo(){
 	if [ "$(cut -d ':' -f 1 /etc/group | grep "$1")" = "" ]; then
-    	echo "El grupo $1 no existe, se creará"
-		groupadd $1
-	else
-    	echo "el grupo existe"
+		dialog --title "info" --infobox "El grupo $1 no existe, se creará" 3 80; sleep 1;
+		sudo groupadd $1
 	fi
 }
 
-#Maneja el ingreso del nombre edl grupo
-ingreseGrupo(){
-	local grupo
-	until [ "$grupo" != "" ]; do
-		echo "Ingrese nombre del grupo, de no existir se creará"
-		read grupo
-	done
-	ingreseGrupo=$grupo
-}
-
-#Encripta la pass ingresada para ser utilizada en useradd 
+#Encripta la pass ingresada para ser utilizada en useradd
 encriptPass(){
 	encriptPass=$(perl -e 'print crypt($ARGV[0], "password")' $1)
 }
 
-#Maneja la creacion del usuario
-crearUsuario(){
-	local usuario pass
-	ingreseUsuario
+addUser(){
+	local shell="/bin/bash"
+	local groups="nogroup"
+	local user=""
+	local home="/home/"
+
+	exec 5>&1
+	local VALUES=$(dialog --ok-label "Submit" \
+    	  --backtitle "Linux User Managment" \
+	      --title "Useradd" \
+    	  --form "Create a new user" \
+	15 50 0 \
+    	"Username:" 1 1 "$user"     1 10 10 0 \
+	    "Shell:"    2 1 "$shell"    2 10 15 0 \
+    	"Group:"    3 1 "$groups"   3 10 8 0 \
+	2>&1 1>&5)
+	exec 5<&-
+	local TEST=$(echo "$VALUES" | tr '\n' ':')
+	local USUARIO=$(echo "$TEST" | cut -d ':' -f 1)
+	local SHELL=$(echo "$TEST" | cut -d ':' -f 2)
+	local GROUP=$(echo "$TEST" | cut -d ':' -f 3)
+
+	if [ "$USUARIO" = "" ]; then
+		dialog --title "ERROR" --infobox "No se permite usuario en blanco" 0 0; sleep 1;
+		return
+	elif ! checkUsuario $USUARIO; then
+		dialog --title "ERROR" --infobox "El usuario ya existe" 0 0; sleep 1;
+		return
+	fi
 	ingresePass
-	ingreseGrupo
-	echo "Crear usuario $ingreseUsuario con pass $ingresePass y grupo $ingreseGrupo?"
-	if estaSeguro; then
+	if estaSeguro "Crear usuario $USUARIO con grupo $GROUP y shell $SHELL"; then
 		encriptPass $ingresePass
-		checkGrupo $ingreseGrupo
-		sudo useradd $ingreseUsuario -p $encriptPass -g $ingreseGrupo -s /bin/bash
+		checkGrupo $GRUPO
+		sudo useradd $USUARIO -p $encriptPass -g $GROUP -s $SHELL -m
 	else
-		echo "Los datos seran descartados"
+		dialog --infobox "Los datos seran descartados" 3 50;sleep 1;
 	fi
 }
 
@@ -137,26 +136,17 @@ apagar(){
 
 exit=1
 until [ $exit -eq 0 ]; do
-#	clear
-#	echo -e "\n\n\n"
-#	echo "Seleccione una opcion"
-#	echo "1) Apagar el equipo"
-#	echo "2) Reiniciar el equipo"
-#	echo "3) Agregar usuario"
-#	echo "4) Ver ultimos 4 usuarios"
-#	echo "5) Ver ultimos 10 mensajes criticos"	
-#	echo "0) Salir"
-#	read opcion
-	dialog --menu 'Seleccione una opcion' 0 0 0 \
+
+	exec 4>&1
+	opcion=$(dialog --menu 'Seleccione una opcion' 0 0 0 \
 		1 'Apagar el equipo'\
 		2 'Reiniciar el equipo'\
 		3 'Agregar usuario'\
 		4 'Ver ultimos 4 usuarios'\
 		5 'Ver ultimos 10 mensajes criticos'\
 		0 'Salir'\
-		2> /tmp/menu.dat
-
-	opcion=`cat /tmp/menu.dat`
+		2>&1 1>&4)
+	exec 4<&-
 
 
 	case $opcion in
@@ -167,15 +157,15 @@ until [ $exit -eq 0 ]; do
 		2) if estaSeguro "Reiniciar equipo"; then
 			apagar r
 		fi ;;
-		3) crearUsuario;;
+		3) addUser;;
+			#crearUsuario;;
 		4) 	tail -n4 /etc/passwd > /tmp/output.dat
-			 dialog --textbox /tmp/output.dat 0 0;;
+			dialog --textbox /tmp/output.dat 0 0;;
 		5) cat /var/log/messages | grep crit | tail -n 10  > /tmp/output.dat
 			 dialog --textbox /tmp/output.dat 0 0;;
 		0) exit=0;;
 		*) exit=0;;
 	esac
-
 done
 VALOR=$(./signature.sh)
 dialog --title "Credits" --infobox "$VALOR" 0 0; sleep 1
