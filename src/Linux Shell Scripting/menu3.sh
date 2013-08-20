@@ -14,6 +14,9 @@
 
 COMMENT
 
+customlog(){
+	logger -t "script" -p local7."$1" "$2" 2> /tmp/error.log
+} 
 
 #Manejo de la pass requerida por sudo
 sudoPassword(){
@@ -24,6 +27,7 @@ sudoPassword(){
 	exec 3<&-
 	sudoPassword=$value
 }
+
 #Manejo de pregunta Si/No
 estaSeguro(){
 
@@ -134,6 +138,8 @@ apagar(){
 	fi
 }
 
+#Principio del script
+customlog "info" "Inicia el script"
 exit=1
 until [ $exit -eq 0 ]; do
 
@@ -153,19 +159,25 @@ until [ $exit -eq 0 ]; do
 
 		1) if estaSeguro "Apagar equipo"; then
 			apagar h
+			customlog "info" "Se apaga el equipo"
 		 fi ;;
 		2) if estaSeguro "Reiniciar equipo"; then
 			apagar r
+			customlog "info" "Se reinicia el equipo"
 		fi ;;
-		3) addUser;;
+		3) addUser
+			customlog "info" "Se crea un usuario";;
 			#crearUsuario;;
 		4) 	tail -n4 /etc/passwd > /tmp/output.dat
-			dialog --textbox /tmp/output.dat 0 0;;
+			dialog --textbox /tmp/output.dat 0 0
+			customlog "info" "Se muestra el /etc/passwd";;
 		5) cat /var/log/messages  > /tmp/output.dat
-			 dialog --textbox /tmp/output.dat 0 0;;
+			 dialog --textbox /tmp/output0.dat 0 0
+			customlog "info" "Se muestra el log de mensajes";;
 		0) exit=0;;
 		*) exit=0;;
 	esac
 done
 VALOR=$(./signature.sh)
 dialog --title "Credits" --infobox "$VALOR" 0 0; sleep 1
+customlog "info" "Finaliza el script"
